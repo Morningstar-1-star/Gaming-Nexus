@@ -1,0 +1,1314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>OmniNexus Gaming OS</title>
+  
+  <!-- Tailwind CSS for styling -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Babel for parsing JSX in the browser -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- Import Maps for React and Lucide Icons -->
+  <script type="importmap">
+    {
+      "imports": {
+        "react": "https://esm.sh/react@18.2.0",
+        "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+        "lucide-react": "https://esm.sh/lucide-react@0.344.0?deps=react@18.2.0"
+      }
+    }
+  </script>
+</head>
+<body class="bg-[#050505] text-white overflow-x-hidden m-0 p-0">
+  <div id="root"></div>
+
+  <!-- Note data-type="module" ensures ES imports work -->
+  <script type="text/babel" data-type="module">
+    import React, { useState, useEffect, useRef, useCallback } from 'react';
+    import { createRoot } from 'react-dom/client';
+    import {
+      Home, Library, User, Search, Flame, Play, Star,
+      Gamepad2, ChevronLeft, Heart, Trophy, Shield,
+      Sparkles, X, Upload, Terminal, MessageSquare, Loader2,
+      DownloadCloud, Compass, Zap, TrendingUp, Clock, Bot,
+      Send, Filter, ChevronRight, Award, Target, Swords,
+      BarChart2, Globe, Cpu, Crosshair, Plus, Check, Trash2,
+      Volume2, VolumeX, RefreshCw, AlertCircle, ChevronDown
+    } from 'lucide-react';
+
+    // ─── CONFIG ────────────────────────────────────────────────────────────────
+    const RAWG_KEY = '2d783ae8db664cc6a701077e074fcaf6';
+    const RAWG = 'https://api.rawg.io/api';
+
+    // ─── PHYSICS & STYLES ──────────────────────────────────────────────────────
+    const PhysicsStyles = () => (
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+        *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+        :root{
+          --cyan:#00f0ff;--pink:#ff007f;--purple:#7000ff;--gold:#ffd700;
+          --bg:#050505;--glass:rgba(10,10,18,0.7);--border:rgba(255,255,255,0.08);
+          --spring:cubic-bezier(0.34,1.56,0.64,1);
+        }
+        body{background:#050505;color:#fff;margin:0;font-family:'Inter',sans-serif;overscroll-behavior:none;}
+        .font-orb{font-family:'Orbitron',monospace;}
+        .hide-scroll{scrollbar-width:none;-ms-overflow-style:none;}
+        .hide-scroll::-webkit-scrollbar{display:none;}
+        .glass{background:var(--glass);backdrop-filter:blur(24px) saturate(180%);-webkit-backdrop-filter:blur(24px) saturate(180%);border:1px solid var(--border);}
+        .neon-c{box-shadow:0 0 20px var(--cyan),inset 0 0 8px rgba(0,240,255,0.1);border:1px solid var(--cyan);}
+        .neon-p{box-shadow:0 0 20px var(--pink),inset 0 0 8px rgba(255,0,127,0.1);border:1px solid var(--pink);}
+        .neon-v{box-shadow:0 0 20px var(--purple),inset 0 0 8px rgba(112,0,255,0.1);border:1px solid var(--purple);}
+        .neon-g{box-shadow:0 0 20px var(--gold),inset 0 0 8px rgba(255,215,0,0.1);border:1px solid var(--gold);}
+        @keyframes orb{0%{transform:translate(0,0) scale(1);}50%{transform:translate(15vw,-8vh) scale(1.08);}100%{transform:translate(-8vw,12vh) scale(0.94);}}
+        .orb{position:fixed;border-radius:50%;filter:blur(100px);z-index:0;opacity:0.28;animation:orb 18s infinite ease-in-out alternate;pointer-events:none;}
+        @keyframes springUp{0%{transform:translateY(60px) scale(0.94);opacity:0;}60%{transform:translateY(-4px) scale(1.02);opacity:1;}100%{transform:translateY(0) scale(1);opacity:1;}}
+        .spring-up{animation:springUp 0.5s var(--spring) forwards;}
+        @keyframes fadeIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+        .fade-in{animation:fadeIn 0.4s ease forwards;}
+        .bounce{transition:transform 0.2s var(--spring);}
+        .bounce:active{transform:scale(0.88);}
+        @keyframes pulse-glow{0%,100%{box-shadow:0 0 15px var(--cyan);}50%{box-shadow:0 0 35px var(--cyan),0 0 60px rgba(0,240,255,0.3);}}
+        .pulse-glow{animation:pulse-glow 2s infinite;}
+        @keyframes scan{0%{transform:translateY(-100%);}100%{transform:translateY(400px);}}
+        .scan-line{position:absolute;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--cyan),transparent);animation:scan 2s linear infinite;}
+        @keyframes rotate360{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
+        .spin{animation:rotate360 1s linear infinite;}
+        @keyframes shimmer{0%{background-position:-200% center;}100%{background-position:200% center;}}
+        .shimmer{background:linear-gradient(90deg,rgba(255,255,255,0.05) 25%,rgba(255,255,255,0.12) 50%,rgba(255,255,255,0.05) 75%);background-size:200% auto;animation:shimmer 1.5s linear infinite;}
+        .chat-msg{animation:fadeIn 0.3s ease forwards;}
+        .video-bg{pointer-events:none;}
+        .line-clamp-1{overflow:hidden;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;}
+        .line-clamp-2{overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}
+        .snap-x{scroll-snap-type:x mandatory;}
+        .snap-start{scroll-snap-align:start;}
+        .no-select{user-select:none;-webkit-user-select:none;}
+        @keyframes float{0%,100%{transform:translateY(0);}50%{transform:translateY(-8px);}}
+        .float{animation:float 3s ease-in-out infinite;}
+        @keyframes matrix-in{0%{opacity:0;transform:scaleY(0);}100%{opacity:1;transform:scaleY(1);}}
+        .matrix-in{animation:matrix-in 0.2s var(--spring) forwards;transform-origin:top;}
+        @keyframes rank-pulse{0%,100%{opacity:1;}50%{opacity:0.6;}}
+        .rank-1{color:var(--gold);text-shadow:0 0 10px var(--gold);}
+        .rank-2{color:#c0c0c0;text-shadow:0 0 10px #c0c0c0;}
+        .rank-3{color:#cd7f32;text-shadow:0 0 10px #cd7f32;}
+        input,textarea{font-family:'Inter',sans-serif;}
+        :focus{outline:none;}
+        @keyframes bars{0%,100%{transform:scaleY(0.4);}50%{transform:scaleY(1);}}
+        .bar-1{animation:bars 0.8s ease infinite;}
+        .bar-2{animation:bars 0.8s ease infinite 0.2s;}
+        .bar-3{animation:bars 0.8s ease infinite 0.4s;}
+      `}</style>
+    );
+
+    const vib = (ms = 25) => navigator.vibrate?.(ms);
+
+    // ─── AI HOOK ───────────────────────────────────────────────────────────────
+    const useAI = () => {
+      const ask = useCallback(async (messages, system = '') => {
+        const res = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: 'claude-sonnet-4-20250514',
+            max_tokens: 1000,
+            system: system || 'You are NexusAI, a gaming expert assistant inside OmniNexus — a next-gen game tracker. Be concise, enthusiastic, and knowledgeable. Keep responses under 3 sentences unless asked for more. Use gaming terminology naturally.',
+            messages
+          })
+        });
+        const data = await res.json();
+        return data.content?.[0]?.text || 'Signal lost. Try again.';
+      }, []);
+      return { ask };
+    };
+
+    // ─── SKELETON CARD ─────────────────────────────────────────────────────────
+    const SkeletonCard = () => (
+      <div className="min-w-[150px] w-[150px]">
+        <div className="aspect-[3/4] rounded-[2rem] shimmer mb-3" />
+        <div className="h-3 rounded shimmer mb-1" />
+        <div className="h-3 rounded shimmer w-2/3" />
+      </div>
+    );
+
+    // ─── GAME CARD ─────────────────────────────────────────────────────────────
+    const GameCard = ({ game, onClick, rank }) => (
+      <div onClick={() => { vib(30); onClick(game); }} className="min-w-[150px] w-[150px] snap-start bounce no-select cursor-pointer">
+        <div className="relative aspect-[3/4] rounded-[2rem] overflow-hidden mb-2 border border-white/8 shadow-xl">
+          {game.background_image
+            ? <img src={game.background_image} className="w-full h-full object-cover" loading="lazy" />
+            : <div className="w-full h-full shimmer" />}
+          {rank && (
+            <div className={`absolute top-2 left-2 w-8 h-8 rounded-full glass flex items-center justify-center text-sm font-black font-orb ${rank === 1 ? 'rank-1' : rank === 2 ? 'rank-2' : rank === 3 ? 'rank-3' : 'text-white/60'}`}>
+              {rank}
+            </div>
+          )}
+          <div className="absolute bottom-2 left-2 right-2 glass rounded-xl p-1.5 flex justify-center items-center gap-1">
+            <Star size={9} className="text-[var(--gold)] fill-[var(--gold)]" />
+            <span className="text-xs font-bold text-white">{game.rating?.toFixed(1) || '—'}</span>
+          </div>
+        </div>
+        <h3 className="text-sm font-bold text-white/90 line-clamp-1 px-1">{game.name}</h3>
+        {game.genres?.[0] && <p className="text-[10px] text-white/40 px-1 mt-0.5">{game.genres[0].name}</p>}
+      </div>
+    );
+
+    // ─── SHELF ─────────────────────────────────────────────────────────────────
+    const Shelf = ({ title, data, icon: Icon, color, onGameClick, loading, ranked }) => (
+      <div className="mt-8">
+        <div className="px-6 flex items-center justify-between mb-4">
+          <h2 className="text-lg font-black flex items-center gap-2 text-white font-orb">
+            <Icon className={color} size={18} /> {title}
+          </h2>
+          <ChevronRight size={16} className="text-white/30" />
+        </div>
+        <div className="flex gap-4 px-6 overflow-x-auto hide-scroll snap-x pb-2">
+          {loading
+            ? Array(5).fill(0).map((_, i) => <SkeletonCard key={i} />)
+            : data.map((game, i) => <GameCard key={game.id} game={game} onClick={onGameClick} rank={ranked ? i + 1 : null} />)}
+        </div>
+      </div>
+    );
+
+    // ─── GENRE PILL ────────────────────────────────────────────────────────────
+    const GenrePill = ({ label, active, onClick }) => (
+      <button
+        onClick={onClick}
+        className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all bounce ${
+          active ? 'bg-[var(--cyan)] text-black shadow-[0_0_15px_var(--cyan)]' : 'glass text-white/60 border border-white/10'
+        }`}
+      >{label}</button>
+    );
+
+    // ─── HOME ──────────────────────────────────────────────────────────────────
+    const HomeView = ({ games, loading, onGameClick }) => {
+      const heroGames = games.trending.slice(0, 5);
+
+      return (
+        <div className="pb-32 spring-up pt-4">
+          <div className="relative w-full h-[58vh] flex overflow-x-auto snap-x hide-scroll px-4 gap-4">
+            {loading
+              ? <div className="min-w-full h-full rounded-[2.5rem] shimmer" />
+              : heroGames.map((game) => (
+                <div
+                  key={game.id}
+                  className="min-w-full h-full relative snap-start rounded-[2.5rem] overflow-hidden bounce cursor-pointer no-select"
+                  onClick={() => onGameClick(game, 'stream')}
+                >
+                  {game.background_image
+                    ? <img src={game.background_image} className="w-full h-full object-cover" />
+                    : <div className="w-full h-full bg-[#111]" />}
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/30 to-transparent" />
+                  <div className="absolute top-6 left-6 flex gap-2 items-center">
+                    <span className="bg-[var(--pink)] text-white px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest shadow-[0_0_12px_var(--pink)] animate-pulse">● Live</span>
+                    {game.metacritic && (
+                      <span className="glass px-3 py-1 rounded-full text-[10px] font-black text-[var(--gold)]">MC {game.metacritic}</span>
+                    )}
+                  </div>
+                  <div className="absolute bottom-8 left-6 right-6">
+                    <h1 className="text-3xl font-black text-white leading-none mb-1 drop-shadow-2xl font-orb">{game.name}</h1>
+                    <p className="text-white/50 text-sm mb-4">{game.genres?.map(g => g.name).join(' · ') || 'Action'}</p>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); vib(40); onGameClick(game, 'stream'); }}
+                        className="flex-1 bg-white text-black font-black py-3 rounded-2xl flex items-center justify-center gap-2 text-sm shadow-[0_0_20px_rgba(255,255,255,0.3)] bounce"
+                      >
+                        <Play size={16} fill="black" /> Watch Stream
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); vib(30); onGameClick(game, 'detail'); }}
+                        className="glass px-4 py-3 rounded-2xl text-sm font-bold text-[var(--cyan)] bounce border border-[var(--cyan)]/40"
+                      >
+                        Info
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+          </div>
+
+          <div className="flex justify-center gap-1.5 mt-3 mb-2">
+            {heroGames.map((_, i) => (
+              <div key={i} className={`rounded-full transition-all ${i === 0 ? 'w-4 h-1.5 bg-[var(--cyan)]' : 'w-1.5 h-1.5 bg-white/20'}`} />
+            ))}
+          </div>
+
+          <Shelf title="Trending Now" data={games.trending} icon={Flame} color="text-[var(--pink)]" onGameClick={(g) => onGameClick(g, 'detail')} loading={loading} />
+          <Shelf title="Upcoming Releases" data={games.upcoming} icon={Clock} color="text-[var(--cyan)]" onGameClick={(g) => onGameClick(g, 'detail')} loading={loading} />
+          <Shelf title="Hall of Fame" data={games.top} icon={Trophy} color="text-[var(--gold)]" onGameClick={(g) => onGameClick(g, 'detail')} loading={loading} ranked />
+        </div>
+      );
+    };
+
+    // ─── EXPLORE ───────────────────────────────────────────────────────────────
+    const ExploreView = ({ onGameClick }) => {
+      const [genre, setGenre] = useState('');
+      const [results, setResults] = useState([]);
+      const [loading, setLoading] = useState(false);
+      const [platform, setPlatform] = useState('');
+
+      const GENRES = ['Action', 'RPG', 'Shooter', 'Strategy', 'Horror', 'Indie', 'Sports', 'Racing', 'Adventure', 'Simulation'];
+      const PLATFORMS = [{ id: '', label: 'All' }, { id: '4', label: 'PC' }, { id: '18', label: 'PS4' }, { id: '187', label: 'PS5' }, { id: '1', label: 'Xbox' }, { id: '7', label: 'Switch' }];
+
+      const fetch_games = useCallback(async (g, p) => {
+        setLoading(true);
+        try {
+          let url = `${RAWG}/games?key=${RAWG_KEY}&page_size=20&ordering=-rating`;
+          if (g) url += `&genres=${g.toLowerCase()}`;
+          if (p) url += `&platforms=${p}`;
+          const res = await fetch(url);
+          const data = await res.json();
+          setResults(data.results || []);
+        } catch { setResults([]); }
+        setLoading(false);
+      }, []);
+
+      useEffect(() => { fetch_games(genre, platform); }, [genre, platform]);
+
+      return (
+        <div className="pt-12 pb-32 spring-up min-h-screen">
+          <div className="px-6 mb-4">
+            <h1 className="text-3xl font-black text-white font-orb">Explore</h1>
+            <p className="text-white/40 text-sm mt-1">Discover your next obsession</p>
+          </div>
+
+          <div className="flex gap-2 px-6 overflow-x-auto hide-scroll pb-2 mb-3">
+            {PLATFORMS.map(p => (
+              <GenrePill key={p.id} label={p.label} active={platform === p.id} onClick={() => { vib(); setPlatform(p.id); }} />
+            ))}
+          </div>
+
+          <div className="flex gap-2 px-6 overflow-x-auto hide-scroll pb-4">
+            <GenrePill label="All" active={!genre} onClick={() => { vib(); setGenre(''); }} />
+            {GENRES.map(g => (
+              <GenrePill key={g} label={g} active={genre === g} onClick={() => { vib(); setGenre(g); }} />
+            ))}
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 px-4">
+            {loading
+              ? Array(8).fill(0).map((_, i) => (
+                <div key={i} className="glass rounded-[2rem] overflow-hidden">
+                  <div className="aspect-video shimmer" />
+                  <div className="p-3">
+                    <div className="h-3 shimmer rounded mb-2" />
+                    <div className="h-3 shimmer rounded w-2/3" />
+                  </div>
+                </div>
+              ))
+              : results.map(game => (
+                <div
+                  key={game.id}
+                  onClick={() => { vib(30); onGameClick(game, 'detail'); }}
+                  className="glass rounded-[2rem] overflow-hidden bounce cursor-pointer border border-white/5"
+                >
+                  <div className="aspect-video relative">
+                    {game.background_image
+                      ? <img src={game.background_image} className="w-full h-full object-cover" loading="lazy" />
+                      : <div className="w-full h-full bg-[#111]" />}
+                    <div className="absolute bottom-2 right-2 glass rounded-lg px-2 py-0.5 flex items-center gap-1">
+                      <Star size={9} className="text-[var(--gold)] fill-[var(--gold)]" />
+                      <span className="text-[10px] font-bold">{game.rating?.toFixed(1) || '—'}</span>
+                    </div>
+                  </div>
+                  <div className="p-3">
+                    <h3 className="font-bold text-sm text-white line-clamp-1">{game.name}</h3>
+                    <p className="text-[10px] text-white/40 mt-0.5">{game.genres?.[0]?.name || 'Game'}</p>
+                  </div>
+                </div>
+              ))}
+          </div>
+        </div>
+      );
+    };
+
+    // ─── SEARCH ────────────────────────────────────────────────────────────────
+    const SearchView = ({ onGameClick }) => {
+      const [q, setQ] = useState('');
+      const [results, setResults] = useState([]);
+      const [loading, setLoading] = useState(false);
+      const [searched, setSearched] = useState(false);
+      const inputRef = useRef(null);
+
+      useEffect(() => { inputRef.current?.focus(); }, []);
+
+      const doSearch = useCallback(async (query) => {
+        if (!query.trim()) { setResults([]); setSearched(false); return; }
+        setLoading(true); setSearched(true);
+        try {
+          const res = await fetch(`${RAWG}/games?key=${RAWG_KEY}&search=${encodeURIComponent(query)}&page_size=15`);
+          const data = await res.json();
+          setResults(data.results || []);
+        } catch { setResults([]); }
+        setLoading(false);
+      }, []);
+
+      useEffect(() => {
+        const t = setTimeout(() => doSearch(q), 500);
+        return () => clearTimeout(t);
+      }, [q]);
+
+      return (
+        <div className="pt-12 pb-32 spring-up min-h-screen">
+          <div className="px-4 mb-4">
+            <h1 className="text-3xl font-black text-white font-orb px-2 mb-4">Search</h1>
+            <div className="glass rounded-2xl flex items-center gap-3 px-4 py-3.5 border border-white/10 focus-within:border-[var(--cyan)] transition-colors">
+              <Search size={18} className="text-white/40 shrink-0" />
+              <input
+                ref={inputRef}
+                value={q}
+                onChange={e => setQ(e.target.value)}
+                placeholder="Search any game..."
+                className="flex-1 bg-transparent text-white placeholder:text-white/30 text-sm"
+              />
+              {q && (
+                <button onClick={() => { setQ(''); setResults([]); setSearched(false); }}>
+                  <X size={16} className="text-white/40" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {loading && (
+            <div className="flex justify-center py-12">
+              <div className="w-10 h-10 border-2 border-[var(--cyan)] border-t-transparent rounded-full spin" />
+            </div>
+          )}
+
+          {!loading && searched && results.length === 0 && (
+            <div className="text-center py-20 text-white/30">
+              <AlertCircle size={40} className="mx-auto mb-3 opacity-40" />
+              <p>No results for "{q}"</p>
+            </div>
+          )}
+
+          {!loading && !searched && (
+            <div className="px-6 py-4 text-center">
+              <Crosshair size={48} className="mx-auto mb-4 text-white/10" />
+              <p className="text-white/30 text-sm">Start typing to search millions of games</p>
+            </div>
+          )}
+
+          <div className="px-4 space-y-3">
+            {results.map((game, i) => (
+              <div
+                key={game.id}
+                onClick={() => { vib(30); onGameClick(game, 'detail'); }}
+                className="glass rounded-2xl flex gap-3 p-3 bounce cursor-pointer border border-white/5 fade-in"
+                style={{ animationDelay: `${i * 40}ms` }}
+              >
+                <div className="w-20 h-20 rounded-xl overflow-hidden shrink-0">
+                  {game.background_image
+                    ? <img src={game.background_image} className="w-full h-full object-cover" loading="lazy" />
+                    : <div className="w-full h-full shimmer" />}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-bold text-white line-clamp-1">{game.name}</h3>
+                  <p className="text-[11px] text-white/40 mt-0.5">{game.genres?.map(g => g.name).join(', ') || '—'}</p>
+                  <div className="flex items-center gap-3 mt-2">
+                    <div className="flex items-center gap-1">
+                      <Star size={10} className="text-[var(--gold)] fill-[var(--gold)]" />
+                      <span className="text-xs font-bold text-[var(--gold)]">{game.rating?.toFixed(1) || '—'}</span>
+                    </div>
+                    {game.metacritic && (
+                      <span className="text-xs font-bold text-[var(--cyan)]">MC {game.metacritic}</span>
+                    )}
+                    {game.released && (
+                      <span className="text-[10px] text-white/30">{game.released?.slice(0, 4)}</span>
+                    )}
+                  </div>
+                </div>
+                <ChevronRight size={16} className="text-white/20 self-center shrink-0" />
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    };
+
+    // ─── GAME DETAIL ───────────────────────────────────────────────────────────
+    const GameDetailModal = ({ game, onClose, onStream, onAddVault, inVault }) => {
+      const [screenshots, setScreenshots] = useState([]);
+      const [details, setDetails] = useState(null);
+      const [aiReview, setAiReview] = useState('');
+      const [aiLoading, setAiLoading] = useState(false);
+      const { ask } = useAI();
+
+      useEffect(() => {
+        const load = async () => {
+          try {
+            const [ssRes, detRes] = await Promise.all([
+              fetch(`${RAWG}/games/${game.id}/screenshots?key=${RAWG_KEY}`),
+              fetch(`${RAWG}/games/${game.id}?key=${RAWG_KEY}`)
+            ]);
+            const ss = await ssRes.json();
+            const det = await detRes.json();
+            setScreenshots(ss.results?.slice(0, 6) || []);
+            setDetails(det);
+          } catch {}
+        };
+        load();
+      }, [game.id]);
+
+      const getAiReview = async () => {
+        setAiLoading(true);
+        const text = await ask([{
+          role: 'user',
+          content: `Give me a punchy 2-sentence expert review of "${game.name}" (Rating: ${game.rating}/5, Metacritic: ${game.metacritic || 'N/A'}). Be specific and opinionated.`
+        }]);
+        setAiReview(text);
+        setAiLoading(false);
+      };
+
+      const platforms = game.platforms?.slice(0, 4).map(p => p.platform.name) || [];
+      const tags = game.tags?.slice(0, 6) || [];
+      const genres = game.genres || [];
+
+      return (
+        <div className="fixed inset-0 z-50 bg-[#050505] flex flex-col spring-up overflow-hidden">
+          <div className="relative h-[38vh] w-full shrink-0">
+            {game.background_image
+              ? <img src={game.background_image} className="w-full h-full object-cover" />
+              : <div className="w-full h-full bg-[#111]" />}
+            <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/40 to-transparent" />
+            <button
+              onClick={() => { vib(); onClose(); }}
+              className="absolute top-10 left-4 w-12 h-12 glass rounded-full flex items-center justify-center text-white bounce"
+            >
+              <ChevronLeft size={24} />
+            </button>
+            <button
+              onClick={() => { vib(40); onAddVault(game); }}
+              className={`absolute top-10 right-4 w-12 h-12 glass rounded-full flex items-center justify-center bounce ${inVault ? 'text-[var(--cyan)]' : 'text-white/60'}`}
+            >
+              {inVault ? <Check size={20} /> : <Plus size={20} />}
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto hide-scroll -mt-8 relative z-10">
+            <div className="glass rounded-t-[2.5rem] px-6 pt-6 pb-32 min-h-full border-t border-white/10">
+              <div className="flex items-start justify-between mb-1">
+                <h1 className="text-2xl font-black text-white font-orb leading-tight flex-1 mr-4">{game.name}</h1>
+                {game.metacritic && (
+                  <div className={`shrink-0 w-14 h-14 rounded-2xl flex flex-col items-center justify-center font-black border-2 ${game.metacritic >= 80 ? 'border-green-400 text-green-400' : game.metacritic >= 60 ? 'border-yellow-400 text-yellow-400' : 'border-red-400 text-red-400'}`}>
+                    <span className="text-lg leading-none">{game.metacritic}</span>
+                    <span className="text-[8px] opacity-60">MC</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-2 flex-wrap mb-4 mt-2">
+                {genres.map(g => (
+                  <span key={g.id} className="text-[10px] px-3 py-1 glass rounded-full text-[var(--cyan)] border border-[var(--cyan)]/30 font-bold">{g.name}</span>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-3 gap-3 mb-5">
+                <div className="glass rounded-2xl p-3 text-center border border-white/5">
+                  <div className="flex items-center justify-center gap-1 mb-1">
+                    <Star size={12} className="text-[var(--gold)] fill-[var(--gold)]" />
+                    <span className="font-black text-white">{game.rating?.toFixed(1) || '—'}</span>
+                  </div>
+                  <p className="text-[9px] text-white/40 uppercase tracking-wider">Rating</p>
+                </div>
+                <div className="glass rounded-2xl p-3 text-center border border-white/5">
+                  <span className="font-black text-white text-sm">{game.ratings_count?.toLocaleString() || '—'}</span>
+                  <p className="text-[9px] text-white/40 uppercase tracking-wider mt-1">Reviews</p>
+                </div>
+                <div className="glass rounded-2xl p-3 text-center border border-white/5">
+                  <span className="font-black text-white text-sm">{game.released?.slice(0, 4) || '—'}</span>
+                  <p className="text-[9px] text-white/40 uppercase tracking-wider mt-1">Released</p>
+                </div>
+              </div>
+
+              <div className="glass rounded-2xl p-4 mb-5 border border-[var(--purple)]/30">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Bot size={16} className="text-[var(--purple)]" />
+                    <span className="text-sm font-bold text-white">NexusAI Review</span>
+                  </div>
+                  {!aiReview && !aiLoading && (
+                    <button
+                      onClick={getAiReview}
+                      className="text-xs font-bold text-[var(--purple)] glass px-3 py-1.5 rounded-full border border-[var(--purple)]/40 bounce"
+                    >
+                      Generate
+                    </button>
+                  )}
+                </div>
+                {aiLoading && (
+                  <div className="flex items-center gap-2 text-white/40">
+                    <div className="w-4 h-4 border border-[var(--purple)] border-t-transparent rounded-full spin" />
+                    <span className="text-xs">Analyzing game data...</span>
+                  </div>
+                )}
+                {aiReview && <p className="text-sm text-white/80 leading-relaxed">{aiReview}</p>}
+                {!aiReview && !aiLoading && <p className="text-xs text-white/30">Tap Generate for an AI-powered expert take</p>}
+              </div>
+
+              {details?.description_raw && (
+                <div className="mb-5">
+                  <h3 className="text-sm font-bold text-white/50 mb-2 uppercase tracking-wider">About</h3>
+                  <p className="text-sm text-white/70 leading-relaxed line-clamp-2">{details.description_raw}</p>
+                </div>
+              )}
+
+              {screenshots.length > 0 && (
+                <div className="mb-5">
+                  <h3 className="text-sm font-bold text-white/50 mb-3 uppercase tracking-wider">Screenshots</h3>
+                  <div className="flex gap-3 overflow-x-auto hide-scroll">
+                    {screenshots.map((s, i) => (
+                      <div key={i} className="min-w-[200px] h-[110px] rounded-xl overflow-hidden shrink-0">
+                        <img src={s.image} className="w-full h-full object-cover" loading="lazy" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {platforms.length > 0 && (
+                <div className="mb-5">
+                  <h3 className="text-sm font-bold text-white/50 mb-2 uppercase tracking-wider">Available On</h3>
+                  <div className="flex gap-2 flex-wrap">
+                    {platforms.map((p, i) => (
+                      <span key={i} className="glass px-3 py-1.5 rounded-lg text-xs font-bold text-white/70 border border-white/8">{p}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {tags.length > 0 && (
+                <div className="mb-6">
+                  <h3 className="text-sm font-bold text-white/50 mb-2 uppercase tracking-wider">Tags</h3>
+                  <div className="flex gap-2 flex-wrap">
+                    {tags.map((t) => (
+                      <span key={t.id} className="text-[10px] px-2 py-1 bg-white/5 rounded-full text-white/40">{t.name}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <button
+                onClick={() => { vib(50); onStream(game); }}
+                className="w-full bg-[var(--pink)] text-white font-black py-4 rounded-2xl flex items-center justify-center gap-2 shadow-[0_0_25px_var(--pink)] bounce"
+              >
+                <Play size={18} fill="white" /> Watch Live Stream
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    // ─── STREAM MODAL ──────────────────────────────────────────────────────────
+    const StreamModal = ({ game, onClose }) => {
+      const [chatMessages, setChatMessages] = useState([
+        { n: 'CyberNinja_99', m: 'LETS GOOO 🔥', col: '#00f0ff' },
+        { n: 'PixelQueen', m: 'insane play wtf', col: '#ff007f' },
+        { n: 'GlitchHunter', m: 'What a clutch round.', col: '#7000ff', sys: true },
+        { n: 'NeonSamurai_X', m: 'W W W W', col: '#00f0ff' },
+        { n: 'VoidWalker', m: '🏆🏆🏆', col: '#ffd700' },
+      ]);
+      const [msg, setMsg] = useState('');
+      const [viewers] = useState(Math.floor(Math.random() * 200000 + 50000));
+      const chatRef = useRef(null);
+
+      const BOTS = [
+        { n: 'ProGamer_Z', m: 'no way that just happened', col: '#00f0ff' },
+        { n: 'StreamLurker', m: 'GG', col: '#ff007f' },
+        { n: 'AlphaKnight', m: 'clip it!!! 📎', col: '#7000ff' },
+        { n: 'xXNightOwlXx', m: 'POG', col: '#ffd700' },
+        { n: 'RetroRider', m: 'this game is PEAK', col: '#00f0ff' },
+        { n: 'HyperLink', m: 'subscribe to the channel fellas', col: '#ff007f' },
+        { n: 'NightBlade', m: 'crazy strats bro', col: '#7000ff' },
+      ];
+
+      useEffect(() => {
+        const t = setInterval(() => {
+          const bot = BOTS[Math.floor(Math.random() * BOTS.length)];
+          setChatMessages(p => [...p.slice(-30), { ...bot, id: Date.now() }]);
+          setTimeout(() => chatRef.current?.scrollTo({ top: 99999, behavior: 'smooth' }), 50);
+        }, 1800);
+        return () => clearInterval(t);
+      }, []);
+
+      const sendMsg = () => {
+        if (!msg.trim()) return;
+        vib(30);
+        setChatMessages(p => [...p, { n: 'You', m: msg, col: '#00f0ff', me: true }]);
+        setMsg('');
+        setTimeout(() => chatRef.current?.scrollTo({ top: 99999, behavior: 'smooth' }), 50);
+      };
+
+      return (
+        <div className="fixed inset-0 z-50 bg-[#050505] flex flex-col spring-up">
+          <div className="relative h-[36vh] w-full bg-black shrink-0 overflow-hidden">
+            <iframe
+              className="w-[160%] h-[160%] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 video-bg"
+              src="https://www.youtube.com/embed/jKCj3KdJqZA?autoplay=1&mute=1&controls=0&showinfo=0&rel=0&loop=1&playlist=jKCj3KdJqZA&modestbranding=1"
+              allow="autoplay; encrypted-media"
+              frameBorder="0"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-transparent to-transparent" />
+            <button onClick={() => { vib(); onClose(); }} className="absolute top-10 left-4 w-12 h-12 glass rounded-full flex items-center justify-center text-white bounce z-10">
+              <ChevronLeft size={24} />
+            </button>
+            <div className="absolute top-10 right-4 flex flex-col items-end gap-2">
+              <div className="flex items-center gap-1.5 bg-[var(--pink)] px-3 py-1.5 rounded-full shadow-[0_0_15px_var(--pink)]">
+                <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
+                <span className="text-xs font-black text-white">LIVE</span>
+              </div>
+              <span className="glass px-2 py-1 rounded-full text-[10px] font-bold text-white/70">{(viewers).toLocaleString()} watching</span>
+            </div>
+            <div className="absolute bottom-6 left-6 flex items-end gap-0.5 h-5">
+              <div className="w-1 bg-[var(--cyan)] rounded-full bar-1 h-full" />
+              <div className="w-1 bg-[var(--cyan)] rounded-full bar-2 h-full" />
+              <div className="w-1 bg-[var(--cyan)] rounded-full bar-3 h-full" />
+            </div>
+          </div>
+
+          <div className="flex-1 glass rounded-t-[2.5rem] -mt-6 px-5 pt-5 pb-0 flex flex-col z-10 border-t border-white/8 overflow-hidden">
+            <div className="flex justify-between items-start mb-4 shrink-0">
+              <div>
+                <h1 className="text-xl font-black text-white font-orb leading-tight">{game.name}</h1>
+                <p className="text-white/40 text-xs mt-1">Esports Arena · Featured Stream</p>
+              </div>
+              <div className="flex gap-2">
+                <button className="glass px-4 py-2 rounded-xl text-xs font-bold text-[var(--pink)] border border-[var(--pink)]/30 bounce">♥ Follow</button>
+                <button className="glass px-4 py-2 rounded-xl text-xs font-bold text-white/60 border border-white/10 bounce">Share</button>
+              </div>
+            </div>
+
+            <div className="flex-1 bg-black/30 rounded-[1.5rem] flex flex-col border border-white/5 overflow-hidden min-h-0">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-white/5 shrink-0">
+                <span className="text-xs font-bold text-white/50">Live Chat</span>
+                <div className="flex items-center gap-1">
+                  <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
+                  <span className="text-[10px] text-white/30">Active</span>
+                </div>
+              </div>
+              <div ref={chatRef} className="flex-1 overflow-y-auto hide-scroll p-3 space-y-2.5">
+                {chatMessages.map((c, i) => (
+                  <div key={c.id || i} className="flex items-start gap-2 chat-msg">
+                    <div className="w-5 h-5 rounded-full shrink-0 flex items-center justify-center text-[8px] font-black" style={{ background: c.col }}>{c.n[0]}</div>
+                    <div>
+                      <span className="font-bold text-[11px]" style={{ color: c.col }}>{c.n} </span>
+                      <span className={`text-[11px] ${c.sys ? 'text-[var(--cyan)]' : c.me ? 'text-white' : 'text-white/60'}`}>{c.m}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="p-3 border-t border-white/5 flex gap-2 shrink-0">
+                <input
+                  value={msg}
+                  onChange={e => setMsg(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && sendMsg()}
+                  placeholder="Send a message..."
+                  className="flex-1 bg-white/5 border border-white/10 rounded-full px-4 py-2.5 text-xs text-white placeholder:text-white/20 focus:border-[var(--cyan)] transition-colors"
+                />
+                <button onClick={sendMsg} className="w-10 h-10 bg-[var(--pink)] rounded-full flex items-center justify-center bounce shrink-0 shadow-[0_0_12px_var(--pink)]">
+                  <Send size={14} />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    // ─── RANKINGS ──────────────────────────────────────────────────────────────
+    const RankingsView = ({ games, loading, onGameClick }) => {
+      const [tab, setTab] = useState('rating');
+
+      const sorted = [...(games.top || [])].sort((a, b) => {
+        if (tab === 'rating') return b.rating - a.rating;
+        if (tab === 'metacritic') return (b.metacritic || 0) - (a.metacritic || 0);
+        return (b.ratings_count || 0) - (a.ratings_count || 0);
+      });
+
+      return (
+        <div className="pt-12 pb-32 spring-up min-h-screen">
+          <div className="px-6 mb-6">
+            <h1 className="text-3xl font-black text-white font-orb">Rankings</h1>
+            <p className="text-white/40 text-sm mt-1">The greatest games ever made</p>
+          </div>
+
+          <div className="flex gap-2 px-6 mb-5 overflow-x-auto hide-scroll">
+            {[{ id: 'rating', label: '⭐ Rating' }, { id: 'metacritic', label: '🎯 Metacritic' }, { id: 'popularity', label: '🔥 Popularity' }].map(t => (
+              <button
+                key={t.id}
+                onClick={() => { vib(); setTab(t.id); }}
+                className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all bounce ${tab === t.id ? 'bg-[var(--gold)] text-black' : 'glass text-white/60 border border-white/10'}`}
+              >{t.label}</button>
+            ))}
+          </div>
+
+          {!loading && sorted.length >= 3 && (
+            <div className="flex items-end justify-center gap-3 px-6 mb-6 h-44">
+              <div onClick={() => onGameClick(sorted[1], 'detail')} className="flex-1 flex flex-col items-center cursor-pointer bounce">
+                <div className="w-16 h-16 rounded-2xl overflow-hidden border-2 border-[#c0c0c0] shadow-[0_0_15px_#c0c0c0] mb-2">
+                  <img src={sorted[1].background_image} className="w-full h-full object-cover" />
+                </div>
+                <p className="text-[10px] font-black text-white/70 line-clamp-1 text-center">{sorted[1].name}</p>
+                <div className="w-full h-20 glass rounded-t-xl mt-2 flex items-center justify-center border border-[#c0c0c0]/30">
+                  <span className="text-3xl font-black rank-2">2</span>
+                </div>
+              </div>
+              <div onClick={() => onGameClick(sorted[0], 'detail')} className="flex-1 flex flex-col items-center cursor-pointer bounce -mb-4">
+                <div className="w-20 h-20 rounded-2xl overflow-hidden border-2 border-[var(--gold)] shadow-[0_0_20px_var(--gold)] mb-2 neon-g float">
+                  <img src={sorted[0].background_image} className="w-full h-full object-cover" />
+                </div>
+                <p className="text-[10px] font-black text-white line-clamp-1 text-center">{sorted[0].name}</p>
+                <div className="w-full h-28 glass rounded-t-xl mt-2 flex items-center justify-center border border-[var(--gold)]/40">
+                  <span className="text-4xl font-black rank-1">1</span>
+                </div>
+              </div>
+              <div onClick={() => onGameClick(sorted[2], 'detail')} className="flex-1 flex flex-col items-center cursor-pointer bounce">
+                <div className="w-14 h-14 rounded-2xl overflow-hidden border-2 border-[#cd7f32] shadow-[0_0_12px_#cd7f32] mb-2">
+                  <img src={sorted[2].background_image} className="w-full h-full object-cover" />
+                </div>
+                <p className="text-[10px] font-black text-white/70 line-clamp-1 text-center">{sorted[2].name}</p>
+                <div className="w-full h-14 glass rounded-t-xl mt-2 flex items-center justify-center border border-[#cd7f32]/30">
+                  <span className="text-2xl font-black rank-3">3</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="px-4 space-y-2">
+            {(loading ? Array(8).fill(null) : sorted.slice(3)).map((game, i) => (
+              <div
+                key={game?.id || i}
+                onClick={() => game && onGameClick(game, 'detail')}
+                className="glass rounded-2xl flex items-center gap-3 p-3 bounce cursor-pointer border border-white/5"
+              >
+                <span className="w-8 text-center font-black text-white/40 font-orb text-sm shrink-0">{i + 4}</span>
+                <div className="w-14 h-14 rounded-xl overflow-hidden shrink-0">
+                  {game?.background_image
+                    ? <img src={game.background_image} className="w-full h-full object-cover" loading="lazy" />
+                    : <div className="w-full h-full shimmer" />}
+                </div>
+                <div className="flex-1 min-w-0">
+                  {game
+                    ? <>
+                      <h3 className="font-bold text-white text-sm line-clamp-1">{game.name}</h3>
+                      <p className="text-[10px] text-white/40">{game.genres?.[0]?.name}</p>
+                    </>
+                    : <>
+                      <div className="h-3 shimmer rounded mb-1.5" />
+                      <div className="h-2.5 shimmer rounded w-1/2" />
+                    </>}
+                </div>
+                {game && (
+                  <div className="text-right shrink-0">
+                    <p className="font-black text-[var(--gold)] text-sm">{tab === 'metacritic' ? game.metacritic || '—' : game.rating?.toFixed(1)}</p>
+                    <p className="text-[9px] text-white/30">{tab === 'metacritic' ? 'MC' : '/ 5'}</p>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    };
+
+    // ─── VAULT ─────────────────────────────────────────────────────────────────
+    const VaultView = ({ vault, onGameClick, onShowImport, onRemove }) => {
+      const [filter, setFilter] = useState('all');
+      const FILTERS = ['all', 'steam', 'epic', 'manual'];
+      const filtered = vault.filter(g => filter === 'all' || g.source === filter);
+
+      return (
+        <div className="pt-12 pb-32 px-4 spring-up min-h-screen">
+          <div className="flex justify-between items-end mb-4 px-2">
+            <div>
+              <h1 className="text-3xl font-black text-white font-orb">My Vault</h1>
+              <p className="text-white/40 text-xs mt-1">{vault.length} games tracked</p>
+            </div>
+            <button
+              onClick={() => { vib(); onShowImport(); }}
+              className="glass px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 text-[var(--cyan)] neon-c bounce"
+            >
+              <Upload size={14} /> Inject
+            </button>
+          </div>
+
+          <div className="flex gap-2 mb-4 overflow-x-auto hide-scroll">
+            {FILTERS.map(f => (
+              <GenrePill key={f} label={f === 'all' ? 'All' : f.charAt(0).toUpperCase() + f.slice(1)} active={filter === f} onClick={() => { vib(); setFilter(f); }} />
+            ))}
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            {filtered.map((game, i) => (
+              <div
+                key={game.id || i}
+                className="glass rounded-[2rem] overflow-hidden border border-white/5 relative bounce cursor-pointer"
+                onClick={() => { vib(30); onGameClick(game, 'detail'); }}
+              >
+                {game.source === 'steam' && <div className="absolute top-0 right-0 bg-[var(--cyan)] text-black text-[9px] font-black px-2 py-1 rounded-bl-xl z-10 uppercase tracking-wider">Steam</div>}
+                {game.source === 'epic' && <div className="absolute top-0 right-0 bg-[var(--pink)] text-white text-[9px] font-black px-2 py-1 rounded-bl-xl z-10 uppercase tracking-wider">Epic</div>}
+                {game.source === 'manual' && <div className="absolute top-0 right-0 bg-[var(--purple)] text-white text-[9px] font-black px-2 py-1 rounded-bl-xl z-10 uppercase tracking-wider">Custom</div>}
+
+                <div className="aspect-[4/3] relative">
+                  {game.background_image
+                    ? <img src={game.background_image} className="w-full h-full object-cover" loading="lazy" />
+                    : <div className="w-full h-full bg-[#111] flex items-center justify-center">
+                      <Gamepad2 size={32} className="text-white/10" />
+                    </div>}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
+                </div>
+                <div className="p-3">
+                  <h3 className="font-bold text-sm text-white line-clamp-1">{game.name}</h3>
+                  <div className="flex items-center justify-between mt-2">
+                    {game.rating > 0
+                      ? <div className="flex items-center gap-1">
+                        <Star size={9} className="text-[var(--gold)] fill-[var(--gold)]" />
+                        <span className="text-[10px] font-bold text-[var(--gold)]">{game.rating?.toFixed(1)}</span>
+                      </div>
+                      : <span className="text-[10px] text-white/30">No rating</span>}
+                    <button
+                      onClick={e => { e.stopPropagation(); vib(40); onRemove(game.id); }}
+                      className="w-6 h-6 rounded-full bg-white/5 flex items-center justify-center text-white/30"
+                    >
+                      <Trash2 size={10} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+            {filtered.length === 0 && (
+              <div className="col-span-2 text-center py-16 text-white/30">
+                <Library size={40} className="mx-auto mb-3 opacity-20" />
+                <p className="text-sm">Vault empty. Connect accounts or inject data.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    };
+
+    // ─── PROFILE / NEURAL ID ───────────────────────────────────────────────────
+    const ProfileView = ({ connectedAccounts, syncingPlatform, onConnect, vault }) => {
+      const synergy = connectedAccounts.steam && connectedAccounts.epic;
+      const level = Math.max(1, Math.floor(vault.length * 2.5) + 5);
+      const xp = (vault.length * 47) % 1000;
+
+      return (
+        <div className="pt-12 pb-32 px-6 spring-up min-h-screen">
+          <h1 className="text-3xl font-black text-white font-orb mb-1">Neural ID</h1>
+          <p className="text-white/40 text-sm mb-6">Your gaming identity</p>
+
+          <div className={`glass p-6 rounded-[2rem] flex flex-col items-center relative overflow-hidden border ${synergy ? 'border-[var(--cyan)]/50 neon-c pulse-glow' : 'border-white/8'} mb-6`}>
+            {synergy && <div className="scan-line opacity-30" />}
+            <div className={`w-20 h-20 rounded-full flex items-center justify-center mb-3 ${synergy ? 'neon-c' : 'border border-white/10'} glass`}>
+              <Trophy size={36} className={synergy ? 'text-[var(--cyan)]' : 'text-white/40'} />
+            </div>
+            <h2 className="text-4xl font-black text-white font-orb">LVL {level}</h2>
+            <p className="text-white/50 text-sm mt-1 text-center">
+              {synergy ? '⚡ 1.5x Synergy Multiplier Active!' : 'Connect Steam + Epic for 1.5x XP Boost'}
+            </p>
+            <div className="w-full mt-4">
+              <div className="flex justify-between text-[10px] text-white/40 mb-1">
+                <span>{xp} XP</span><span>1000 XP</span>
+              </div>
+              <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-1000"
+                  style={{ width: `${xp / 10}%`, background: synergy ? 'var(--cyan)' : 'var(--purple)' }}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3 mb-6">
+            {[
+              { label: 'Games', value: vault.length, icon: Gamepad2, color: 'text-[var(--cyan)]' },
+              { label: 'Platforms', value: Object.values(connectedAccounts).filter(Boolean).length, icon: Globe, color: 'text-[var(--pink)]' },
+              { label: 'Score', value: `${(vault.reduce((a, g) => a + (g.rating || 0), 0) / Math.max(1, vault.length)).toFixed(1)}`, icon: Star, color: 'text-[var(--gold)]' },
+            ].map(s => (
+              <div key={s.label} className="glass rounded-2xl p-4 text-center border border-white/5">
+                <s.icon size={18} className={`${s.color} mx-auto mb-2`} />
+                <p className="font-black text-white text-lg">{s.value}</p>
+                <p className="text-[9px] text-white/40 uppercase tracking-wider">{s.label}</p>
+              </div>
+            ))}
+          </div>
+
+          <h3 className="text-base font-bold text-white mb-3">Core Integrations</h3>
+          <div className="space-y-3">
+            <div className="glass p-4 rounded-[2rem] flex items-center justify-between border border-white/5 overflow-hidden relative">
+              {syncingPlatform === 'steam' && (
+                <div className="absolute inset-0 bg-[var(--cyan)]/10 backdrop-blur-sm flex items-center justify-center z-10">
+                  <div className="w-5 h-5 border-2 border-[var(--cyan)] border-t-transparent rounded-full spin mr-2" />
+                  <span className="text-[var(--cyan)] font-bold text-sm tracking-widest font-orb">EXTRACTING DATA...</span>
+                </div>
+              )}
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-[#1b2838] rounded-full flex items-center justify-center border border-white/10">
+                  <Gamepad2 className="text-white" size={20} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-white text-sm">Steam</h3>
+                  <p className={`text-xs font-bold ${connectedAccounts.steam ? 'text-[var(--cyan)]' : 'text-white/30'}`}>
+                    {connectedAccounts.steam ? '✓ Vault Synced' : 'Offline'}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => onConnect('steam')}
+                disabled={syncingPlatform !== null}
+                className={`px-5 py-2 rounded-xl text-sm font-bold bounce ${connectedAccounts.steam ? 'glass text-white border border-white/10' : 'bg-[var(--cyan)] text-black shadow-[0_0_15px_var(--cyan)]'}`}
+              >
+                {connectedAccounts.steam ? 'Disconnect' : 'Connect'}
+              </button>
+            </div>
+
+            <div className="glass p-4 rounded-[2rem] flex items-center justify-between border border-white/5 overflow-hidden relative">
+              {syncingPlatform === 'epic' && (
+                <div className="absolute inset-0 bg-[var(--pink)]/10 backdrop-blur-sm flex items-center justify-center z-10">
+                  <div className="w-5 h-5 border-2 border-[var(--pink)] border-t-transparent rounded-full spin mr-2" />
+                  <span className="text-[var(--pink)] font-bold text-sm tracking-widest font-orb">EXTRACTING DATA...</span>
+                </div>
+              )}
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-black rounded-full flex items-center justify-center border border-white/10">
+                  <Shield className="text-white" size={20} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-white text-sm">Epic Games</h3>
+                  <p className={`text-xs font-bold ${connectedAccounts.epic ? 'text-[var(--pink)]' : 'text-white/30'}`}>
+                    {connectedAccounts.epic ? '✓ Vault Synced' : 'Offline'}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => onConnect('epic')}
+                disabled={syncingPlatform !== null}
+                className={`px-5 py-2 rounded-xl text-sm font-bold bounce ${connectedAccounts.epic ? 'glass text-white border border-white/10' : 'bg-[var(--pink)] text-white shadow-[0_0_15px_var(--pink)]'}`}
+              >
+                {connectedAccounts.epic ? 'Disconnect' : 'Connect'}
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    // ─── BULK IMPORT ───────────────────────────────────────────────────────────
+    const BulkImportModal = ({ onImport, onClose }) => {
+      const [text, setText] = useState('');
+      return (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/80 backdrop-blur-sm spring-up">
+          <div className="w-full max-w-lg glass neon-c rounded-[2.5rem] p-6 shadow-[0_0_40px_rgba(0,240,255,0.15)]">
+            <div className="flex justify-between items-center mb-5">
+              <h3 className="text-xl font-black text-white flex items-center gap-2 font-orb">
+                <Terminal size={18} className="text-[var(--cyan)]" /> Data Injection
+              </h3>
+              <button onClick={onClose} className="w-8 h-8 glass rounded-full flex items-center justify-center text-white bounce"><X size={14} /></button>
+            </div>
+            <textarea
+              className="w-full h-48 bg-black/60 border border-white/10 rounded-2xl p-4 text-white placeholder:text-white/20 focus:border-[var(--cyan)] resize-none font-mono text-sm transition-colors"
+              placeholder={"Paste game titles, one per line:\nElden Ring\nHades\nCyberpunk 2077\nHollow Knight"}
+              value={text}
+              onChange={e => setText(e.target.value)}
+              autoFocus
+            />
+            <button
+              onClick={() => { vib(50); onImport(text); }}
+              disabled={!text.trim()}
+              className="w-full mt-4 bg-[var(--cyan)] text-black font-black py-4 rounded-2xl bounce shadow-[0_0_20px_var(--cyan)] disabled:opacity-30"
+            >
+              Execute Import ({text.split('\n').filter(l => l.trim()).length} titles)
+            </button>
+          </div>
+        </div>
+      );
+    };
+
+    // ─── AI ASSISTANT MODAL ────────────────────────────────────────────────────
+    const AIAssistantModal = ({ onClose }) => {
+      const [messages, setMessages] = useState([
+        { role: 'assistant', content: "Hey! I'm NexusAI 🎮 Ask me anything — game recommendations, reviews, tips, or what to play next." }
+      ]);
+      const [input, setInput] = useState('');
+      const [loading, setLoading] = useState(false);
+      const { ask } = useAI();
+      const chatRef = useRef(null);
+
+      const send = async () => {
+        if (!input.trim() || loading) return;
+        vib(30);
+        const userMsg = { role: 'user', content: input };
+        const newHistory = [...messages, userMsg];
+        setMessages(newHistory);
+        setInput('');
+        setLoading(true);
+        setTimeout(() => chatRef.current?.scrollTo({ top: 99999, behavior: 'smooth' }), 50);
+
+        const apiMessages = newHistory.filter(m => m.role !== 'system').map(m => ({ role: m.role, content: m.content }));
+        const reply = await ask(apiMessages);
+        setMessages([...newHistory, { role: 'assistant', content: reply }]);
+        setLoading(false);
+        setTimeout(() => chatRef.current?.scrollTo({ top: 99999, behavior: 'smooth' }), 50);
+      };
+
+      const QUICK = ['What should I play tonight?', 'Best RPGs of 2024?', 'Hidden gem recommendations', 'Compare Elden Ring vs Dark Souls'];
+
+      return (
+        <div className="fixed inset-0 z-50 bg-[#050505] flex flex-col spring-up">
+          <div className="glass px-6 py-5 border-b border-white/8 flex items-center gap-3 shrink-0">
+            <button onClick={() => { vib(); onClose(); }} className="w-10 h-10 glass rounded-full flex items-center justify-center text-white bounce">
+              <ChevronLeft size={20} />
+            </button>
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[var(--purple)] to-[var(--cyan)] flex items-center justify-center">
+              <Bot size={20} />
+            </div>
+            <div>
+              <h2 className="font-black text-white font-orb">NexusAI</h2>
+              <p className="text-[10px] text-[var(--cyan)]">Gaming Intelligence · Online</p>
+            </div>
+          </div>
+
+          <div ref={chatRef} className="flex-1 overflow-y-auto hide-scroll p-5 space-y-4">
+            {messages.map((m, i) => (
+              <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'} fade-in`}>
+                {m.role === 'assistant' && (
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[var(--purple)] to-[var(--cyan)] flex items-center justify-center mr-2 shrink-0 self-end">
+                    <Bot size={14} />
+                  </div>
+                )}
+                <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+                  m.role === 'user'
+                    ? 'bg-[var(--purple)] text-white rounded-br-md'
+                    : 'glass text-white/90 border border-white/8 rounded-bl-md'
+                }`}>
+                  {m.content}
+                </div>
+              </div>
+            ))}
+            {loading && (
+              <div className="flex justify-start">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[var(--purple)] to-[var(--cyan)] flex items-center justify-center mr-2">
+                  <Bot size={14} />
+                </div>
+                <div className="glass rounded-2xl rounded-bl-md px-4 py-3 border border-white/8 flex items-center gap-1">
+                  <div className="w-2 h-2 bg-[var(--cyan)] rounded-full animate-bounce" />
+                  <div className="w-2 h-2 bg-[var(--cyan)] rounded-full animate-bounce" style={{ animationDelay: '0.15s' }} />
+                  <div className="w-2 h-2 bg-[var(--cyan)] rounded-full animate-bounce" style={{ animationDelay: '0.3s' }} />
+                </div>
+              </div>
+            )}
+
+            {messages.length === 1 && (
+              <div className="grid grid-cols-2 gap-2 mt-4">
+                {QUICK.map((q, i) => (
+                  <button
+                    key={i}
+                    onClick={() => { setInput(q); }}
+                    className="glass rounded-xl p-3 text-left text-xs text-white/60 border border-white/8 bounce"
+                  >{q}</button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="glass border-t border-white/8 p-4 flex gap-3 shrink-0">
+            <input
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && send()}
+              placeholder="Ask NexusAI anything..."
+              className="flex-1 bg-white/5 border border-white/10 rounded-full px-4 py-3 text-sm text-white placeholder:text-white/20 focus:border-[var(--purple)] transition-colors"
+            />
+            <button
+              onClick={send}
+              disabled={loading || !input.trim()}
+              className="w-12 h-12 rounded-full flex items-center justify-center bounce shrink-0 disabled:opacity-30"
+              style={{ background: 'linear-gradient(135deg, var(--purple), var(--cyan))', boxShadow: '0 0 20px rgba(112,0,255,0.4)' }}
+            >
+              <Send size={16} />
+            </button>
+          </div>
+        </div>
+      );
+    };
+
+    // ════════════════════════════════════════════════════════════════════════════
+    // ROOT APP
+    // ════════════════════════════════════════════════════════════════════════════
+    function App() {
+      const [tab, setTab] = useState('home');
+      const [games, setGames] = useState({ trending: [], upcoming: [], top: [] });
+      const [loading, setLoading] = useState(true);
+      const [vault, setVault] = useState([]);
+      const [connectedAccounts, setConnectedAccounts] = useState({ steam: false, epic: false });
+      const [syncingPlatform, setSyncingPlatform] = useState(null);
+      const [activeGame, setActiveGame] = useState(null);
+      const [gameMode, setGameMode] = useState(null);
+      const [showImport, setShowImport] = useState(false);
+      const [showAI, setShowAI] = useState(false);
+      const [bootDone, setBootDone] = useState(false);
+
+      useEffect(() => {
+        const fetchAll = async () => {
+          try {
+            const [t, u, top] = await Promise.all([
+              fetch(`${RAWG}/games?key=${RAWG_KEY}&ordering=-added&page_size=15`).then(r => r.json()),
+              fetch(`${RAWG}/games?key=${RAWG_KEY}&dates=2024-01-01,2026-12-31&ordering=-added&page_size=15`).then(r => r.json()),
+              fetch(`${RAWG}/games?key=${RAWG_KEY}&ordering=-rating&page_size=20&metacritic=80,100`).then(r => r.json()),
+            ]);
+            setGames({ trending: t.results || [], upcoming: u.results || [], top: top.results || [] });
+            setVault((t.results || []).slice(0, 3));
+          } catch (e) { console.error(e); }
+          setTimeout(() => setBootDone(true), 200);
+          setLoading(false);
+        };
+        fetchAll();
+      }, []);
+
+      const openGame = (game, mode) => { vib(40); setActiveGame(game); setGameMode(mode); };
+      const closeGame = () => { setActiveGame(null); setGameMode(null); };
+
+      const addToVault = (game) => {
+        vib(30);
+        setVault(prev => prev.find(g => g.id === game.id) ? prev : [{ ...game, source: 'manual' }, ...prev]);
+      };
+
+      const removeFromVault = (id) => {
+        vib(40);
+        setVault(prev => prev.filter(g => g.id !== id));
+      };
+
+      const handleImport = (text) => {
+        const newGames = text.split('\n').filter(l => l.trim()).map((line, i) => ({
+          id: `custom-${Date.now()}-${i}`,
+          name: line.trim(),
+          background_image: null,
+          rating: 0,
+          source: 'manual'
+        }));
+        setVault(prev => [...prev, ...newGames]);
+        setShowImport(false);
+        setTab('vault');
+      };
+
+      const handleConnect = (platform) => {
+        vib(40);
+        if (connectedAccounts[platform]) {
+          setConnectedAccounts(p => ({ ...p, [platform]: false }));
+          setVault(prev => prev.filter(g => g.source !== platform));
+          return;
+        }
+        setSyncingPlatform(platform);
+        setTimeout(() => {
+          const injected = platform === 'steam' ? [
+            { id: 'stm1', name: 'Cyberpunk 2077', background_image: 'https://images.unsplash.com/photo-1605901309584-818e25960b8f?w=800', rating: 4.2, source: 'steam' },
+            { id: 'stm2', name: 'Elden Ring', background_image: 'https://images.unsplash.com/photo-1623934199716-ba2e204b3bf5?w=800', rating: 4.9, source: 'steam' },
+            { id: 'stm3', name: 'Baldur\'s Gate 3', background_image: 'https://images.unsplash.com/photo-1552820728-8b83bb6b773f?w=800', rating: 4.8, source: 'steam' },
+          ] : [
+            { id: 'epc1', name: 'Fortnite', background_image: 'https://images.unsplash.com/photo-1580234811432-5202e455026e?w=800', rating: 3.8, source: 'epic' },
+            { id: 'epc2', name: 'Alan Wake 2', background_image: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=800', rating: 4.5, source: 'epic' },
+          ];
+          setVault(prev => [...injected.filter(g => !prev.find(p => p.id === g.id)), ...prev]);
+          setConnectedAccounts(p => ({ ...p, [platform]: true }));
+          setSyncingPlatform(null);
+        }, 2000);
+      };
+
+      const NAV = [
+        { id: 'home', icon: Home, label: 'Nexus' },
+        { id: 'explore', icon: Compass, label: 'Explore' },
+        { id: 'search', icon: Search, label: 'Search' },
+        { id: 'rankings', icon: TrendingUp, label: 'Ranks' },
+        { id: 'vault', icon: Library, label: 'Vault' },
+        { id: 'profile', icon: User, label: 'ID' },
+      ];
+
+      const isModal = activeGame || showImport || showAI;
+
+      return (
+        <div className="min-h-screen relative overflow-x-hidden">
+          <PhysicsStyles />
+
+          <div className="orb w-[70vw] h-[70vw] bg-[var(--purple)]" style={{ top: '-15%', left: '-10%' }} />
+          <div className="orb w-[55vw] h-[55vw] bg-[var(--cyan)]" style={{ bottom: '-10%', right: '-10%', animationDelay: '-9s' }} />
+          <div className="orb w-[40vw] h-[40vw] bg-[var(--pink)]" style={{ top: '35%', left: '15%', animationDelay: '-5s' }} />
+
+          {!bootDone ? (
+            <div className="fixed inset-0 z-[100] bg-[#050505] flex flex-col items-center justify-center gap-6">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[var(--purple)] to-[var(--cyan)] flex items-center justify-center float">
+                <Gamepad2 size={32} />
+              </div>
+              <div className="text-center">
+                <h1 className="text-2xl font-black text-white font-orb">OmniNexus</h1>
+                <p className="text-white/40 text-xs mt-1 tracking-widest uppercase">Ultimate Gaming OS</p>
+              </div>
+              <div className="w-48 h-1 bg-white/10 rounded-full overflow-hidden">
+                <div className="h-full bg-gradient-to-r from-[var(--purple)] to-[var(--cyan)] rounded-full" style={{ animation: 'shimmer 1s linear infinite', backgroundSize: '200% auto' }} />
+              </div>
+              <p className="text-[var(--cyan)] font-orb text-xs animate-pulse tracking-widest">INITIALIZING...</p>
+            </div>
+          ) : (
+            <>
+              {tab === 'home' && <HomeView games={games} loading={loading} onGameClick={openGame} />}
+              {tab === 'explore' && <ExploreView onGameClick={openGame} />}
+              {tab === 'search' && <SearchView onGameClick={openGame} />}
+              {tab === 'rankings' && <RankingsView games={games} loading={loading} onGameClick={openGame} />}
+              {tab === 'vault' && <VaultView vault={vault} onGameClick={openGame} onShowImport={() => setShowImport(true)} onRemove={removeFromVault} />}
+              {tab === 'profile' && <ProfileView connectedAccounts={connectedAccounts} syncingPlatform={syncingPlatform} onConnect={handleConnect} vault={vault} />}
+
+              {activeGame && gameMode === 'detail' && (
+                <GameDetailModal
+                  game={activeGame}
+                  onClose={closeGame}
+                  onStream={(g) => { setGameMode('stream'); }}
+                  onAddVault={addToVault}
+                  inVault={vault.some(g => g.id === activeGame.id)}
+                />
+              )}
+              {activeGame && gameMode === 'stream' && <StreamModal game={activeGame} onClose={closeGame} />}
+              {showImport && <BulkImportModal onImport={handleImport} onClose={() => setShowImport(false)} />}
+              {showAI && <AIAssistantModal onClose={() => setShowAI(false)} />}
+
+              {!isModal && (
+                <button
+                  onClick={() => { vib(50); setShowAI(true); }}
+                  className="fixed bottom-28 right-5 z-40 w-14 h-14 rounded-full flex items-center justify-center bounce"
+                  style={{ background: 'linear-gradient(135deg, var(--purple), var(--cyan))', boxShadow: '0 0 25px rgba(112,0,255,0.5)' }}
+                >
+                  <Bot size={22} />
+                </button>
+              )}
+
+              {!isModal && (
+                <nav className="fixed bottom-4 left-1/2 -translate-x-1/2 glass px-2 py-2 rounded-[2rem] flex z-40 w-[96%] max-w-md justify-between border border-white/10 shadow-[0_20px_60px_rgba(0,0,0,0.9)]">
+                  {NAV.map(item => {
+                    const Icon = item.icon;
+                    const active = tab === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => { vib(20); setTab(item.id); }}
+                        className={`relative flex flex-col items-center justify-center gap-0.5 px-3 py-2 rounded-2xl transition-all bounce ${active ? 'text-black' : 'text-white/40'}`}
+                        style={active ? { background: 'linear-gradient(135deg, var(--cyan), var(--purple))', boxShadow: '0 0 15px rgba(0,240,255,0.3)' } : {}}
+                      >
+                        <Icon size={18} strokeWidth={active ? 2.5 : 1.8} />
+                        <span className="text-[9px] font-bold">{item.label}</span>
+                      </button>
+                    );
+                  })}
+                </nav>
+              )}
+            </>
+          )}
+        </div>
+      );
+    }
+
+    const root = createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
